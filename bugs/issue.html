@@ -12,13 +12,46 @@
       };
     </script>
   </head>
+
   <body class="bg-gray-900 text-white min-h-screen p-4 sm:p-8">
     <!-- Responsive Navbar -->
     <nav class="bg-gray-800 px-4 py-3 flex items-center justify-between">
       <!-- Logo -->
       <div class="flex items-center">
         <a href="/"><img src="./logo.png" alt="Logo" class="h-8 w-8 mr-2" /></a>
-        <span class="font-bold text-xl text-white">HappySMP</span>
+        <span class="font-bold text-xl text-white">HappySMP bug: <span id="issueNumber" class="text-blue-400"></span></span>
+        <script>
+          // Show issue number in navbar if present in URL
+          document.addEventListener("DOMContentLoaded", function () {
+            const params = new URLSearchParams(window.location.search);
+            const issueId = params.get("id");
+            if (issueId) {
+              // Try to get issue title from cache
+              let issue = null;
+              try {
+          const cachedOpen = JSON.parse(localStorage.getItem("issues_open")) || [];
+          const cachedClosed = JSON.parse(localStorage.getItem("issues_closed")) || [];
+          issue = [...cachedOpen, ...cachedClosed].find(i => i.number == issueId);
+              } catch {}
+              // Create the link to the GitHub issue
+              const link = document.createElement("a");
+              link.href = `https://github.com/HappySMP/BugTracker/issues/${issueId}`;
+              link.target = "_blank";
+              link.className = "hover:text-blue-300"; // removed underline
+              link.textContent = `#${issueId}`;
+              link.style.textDecoration = "none"; // ensure no underline
+              const issueNumberSpan = document.getElementById("issueNumber");
+              issueNumberSpan.appendChild(link);
+              // Also show the issue title if available in cache
+              if (issue && issue.title) {
+          const titleSpan = document.createElement("span");
+          titleSpan.className = "ml-2 text-gray-300 text-base font-normal";
+          titleSpan.textContent = `– ${issue.title}`;
+          issueNumberSpan.appendChild(titleSpan);
+              }
+            }
+          });
+        </script>
       </div>
       <!-- Desktop Links -->
       <div class="hidden md:flex gap-6 items-center">
@@ -69,133 +102,151 @@
     </div>
 
     <!-- Main Content -->
-    <div class="w-full max-w-5xl mx-auto mt-8">
-      <a href="/" class="text-blue-400 hover:underline mb-6 inline-block"
-        >&larr; Back to issues</a
-      >
+    <div class="w-full max-w-4xl mx-auto mt-8">
+      <div class="flex justify-center mb-6">
+      </div>
       <div id="issueDetails" class="mt-6"></div>
     </div>
 
-<script>
-  const REPO_OWNER = "HappySMP";
-  const REPO_NAME = "BugTracker";
+    <script>
+      const REPO_OWNER = "HappySMP";
+      const REPO_NAME = "BugTracker";
 
-  function getContrastYIQ(hexcolor) {
-    const r = parseInt(hexcolor.substr(1, 2), 16);
-    const g = parseInt(hexcolor.substr(3, 2), 16);
-    const b = parseInt(hexcolor.substr(5, 2), 16);
-    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-    return yiq >= 128 ? "#000" : "#fff";
-  }
-
-  async function loadIssue() {
-    const params = new URLSearchParams(window.location.search);
-    const issueId = params.get("id");
-    if (!issueId) return;
-
-    // Try to get issue and comments from cache
-    let issue = null;
-    let comments = null;
-
-    // Try to find the issue in cached open/closed issues
-    function findIssueInCache(state) {
-      try {
-        const cached = JSON.parse(localStorage.getItem(`issues_${state}`)) || [];
-        return cached.find((i) => i.number == issueId);
-      } catch {
-        return null;
+      function getContrastYIQ(hexcolor) {
+        const r = parseInt(hexcolor.substr(1, 2), 16);
+        const g = parseInt(hexcolor.substr(3, 2), 16);
+        const b = parseInt(hexcolor.substr(5, 2), 16);
+        const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+        return yiq >= 128 ? "#000" : "#fff";
       }
-    }
 
-    issue = findIssueInCache("open") || findIssueInCache("closed");
-    if (issue) {
-      console.log("Loaded issue from localStorage");
-    }
+      async function loadIssue() {
+        const params = new URLSearchParams(window.location.search);
+        const issueId = params.get("id");
+        if (!issueId) return;
 
-    // Try to get comments from cache
-    try {
-      comments = JSON.parse(localStorage.getItem(`comments_${issueId}`));
-      if (comments) {
-        console.log("Loaded comments from localStorage");
-      }
-    } catch {
-      comments = null;
-    }
+        // Try to get issue and comments from cache
+        let issue = null;
+        let comments = null;
 
-    // If not cached, fetch from API
-    if (!issue) {
-      const issueRes = await fetch(
-        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${issueId}`
-      );
-      issue = await issueRes.json();
-      console.log("Fetched issue from GitHub API");
-    }
-    if (!comments) {
-      const commentsRes = await fetch(
-        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${issueId}/comments`
-      );
-      comments = await commentsRes.json();
-      // Cache for future use
-      localStorage.setItem(`comments_${issueId}`, JSON.stringify(comments));
-      console.log("Fetched comments from GitHub API");
-    }
-    const labels = (issue.labels || [])
-      .map((label) => {
-        const bgColor = `#${label.color}`;
-        const textColor = getContrastYIQ(bgColor);
-        return `<span class="text-xs font-semibold inline-block px-2 py-1 rounded mr-2" style="background-color:${bgColor};color:${textColor}">${label.name}</span>`;
-      })
-      .join("");
+        // Try to find the issue in cached open/closed issues
+        function findIssueInCache(state) {
+          try {
+            const cached =
+              JSON.parse(localStorage.getItem(`issues_${state}`)) || [];
+            return cached.find((i) => i.number == issueId);
+          } catch {
+            return null;
+          }
+        }
 
-    const commentHTML = (comments || [])
-      .map(
-        (comment) => `
-      <div class="bg-gray-800 p-4 rounded mb-4 shadow">
-        <div class="text-sm text-gray-400 mb-2">
-          <strong>${comment.user.login}</strong> commented on ${new Date(
-          comment.created_at
-        ).toLocaleString()}
+        issue = findIssueInCache("open") || findIssueInCache("closed");
+        if (issue) {
+          console.log("Loaded issue from localStorage");
+        }
+
+        // Try to get comments from cache
+        try {
+          comments = JSON.parse(localStorage.getItem(`comments_${issueId}`));
+          if (comments) {
+            console.log("Loaded comments from localStorage");
+          }
+        } catch {
+          comments = null;
+        }
+
+        // If not cached, fetch from API
+        if (!issue) {
+          const issueRes = await fetch(
+            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${issueId}`
+          );
+          issue = await issueRes.json();
+          console.log("Fetched issue from GitHub API");
+        }
+        if (!comments) {
+          const commentsRes = await fetch(
+            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${issueId}/comments`
+          );
+          comments = await commentsRes.json();
+          // Cache for future use
+          localStorage.setItem(`comments_${issueId}`, JSON.stringify(comments));
+          console.log("Fetched comments from GitHub API");
+        }
+        const labels = (issue.labels || [])
+          .map((label) => {
+            const bgColor = `#${label.color}`;
+            const textColor = getContrastYIQ(bgColor);
+            return `<span class="text-xs font-semibold inline-block px-2 py-1 rounded mr-2" style="background-color:${bgColor};color:${textColor}">${label.name}</span>`;
+          })
+          .join("");
+
+        const commentHTML = (comments || [])
+          .map(
+            (comment) => `
+            <div class="bg-gray-800 p-4 rounded mb-4 shadow">
+              <div class="text-sm text-gray-400 mb-2">
+                <strong>${comment.user.login}</strong> commented on ${new Date(
+              comment.created_at
+            ).toLocaleString()}
+              </div>
+              <div class="prose prose-invert">${marked.parse(
+                comment.body
+              )}</div>
+            </div>
+          `
+          )
+          .join("");
+
+        document.getElementById("issueDetails").innerHTML = `
+        <div class="relative max-w-4xl mx-auto">
+          ${
+            labels
+              ? `<div class="absolute -top-4 left-4 z-10">${labels}</div>`
+              : ""
+          }
+          <div class="bg-gray-800 rounded shadow-lg p-10 pt-8 mt-6 flex flex-col min-h-[400px] justify-between relative">
+            <div>
+              <h1 class="text-3xl font-bold mb-2">${issue.title}</h1>
+              <p class="text-sm text-gray-400 mb-4">#${
+          issue.number
+              } opened by ${issue.user.login}</p>
+              <div class="prose prose-invert max-w-none mb-8">${marked.parse(
+          issue.body || "*No description.*"
+              )}</div>
+            </div>
+            <div class="mt-8 flex justify-between">
+              <a href="/bugs/" class="inline-block bg-gray-500 hover:bg-gray-600 text-white font-semibold px-4 py-2 rounded transition">
+          &larr; Back to issues
+              </a>
+              <a href="${
+          issue.html_url
+              }" target="_blank" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded">
+          View this issue →
+              </a>
+            </div>
+          </div>
         </div>
-        <div class="prose prose-invert">${marked.parse(comment.body)}</div>
-      </div>
-    `
-      )
-      .join("");
+        <div class="max-w-4xl mx-auto mt-10">
+          <h2 class="text-2xl font-bold mb-4">Comments</h2>
+          ${commentHTML || `<p class="text-gray-400">No comments yet.</p>`}
+        </div>
+            `;
+            }
 
-    document.getElementById("issueDetails").innerHTML = `
-      <h1 class="text-3xl font-bold mb-2">${issue.title}</h1>
-      <p class="text-sm text-gray-400 mb-4">#${issue.number} opened by ${
-      issue.user.login
-    }</p>
-      <div class="mb-4">${labels}</div>
-      <div class="prose prose-invert max-w-none mb-8">${marked.parse(
-        issue.body || "*No description.*"
-      )}</div>
-      <a href="${
-        issue.html_url
-      }" target="_blank" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded mb-8">
-        View this issue →
-      </a>
+      // Hamburger menu toggle
+      document.addEventListener("DOMContentLoaded", function () {
+        const navToggle = document.getElementById("navToggle");
+        const mobileMenu = document.getElementById("mobileMenu");
+        navToggle.addEventListener("click", () => {
+          mobileMenu.classList.toggle("hidden");
+        });
+      });
 
-      <h2 class="text-2xl font-bold mb-4">Comments</h2>
-      ${commentHTML || `<p class="text-gray-400">No comments yet.</p>`}
-    `;
-  }
-
-  // Hamburger menu toggle
-  document.addEventListener("DOMContentLoaded", function () {
-    const navToggle = document.getElementById("navToggle");
-    const mobileMenu = document.getElementById("mobileMenu");
-    navToggle.addEventListener("click", () => {
-      mobileMenu.classList.toggle("hidden");
-    });
-  });
-
-  // Load GitHub-flavored Markdown parser
-  const script = document.createElement("script");
-  script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
-  script.onload = loadIssue;
-  document.head.appendChild(script);
-</script>
+      // Load GitHub-flavored Markdown parser
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
+      script.onload = loadIssue;
+      document.head.appendChild(script);
+    </script>
   </body>
 </html>
