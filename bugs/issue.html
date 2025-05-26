@@ -19,7 +19,9 @@
       <!-- Logo -->
       <div class="flex items-center">
         <a href="/"><img src="./logo.png" alt="Logo" class="h-8 w-8 mr-2" /></a>
-        <span class="font-bold text-xl text-white">HappySMP bug: <span id="issueNumber" class="text-blue-400"></span></span>
+        <span class="font-bold text-xl text-white"
+          >HappySMP bug: <span id="issueNumber" class="text-blue-400"></span
+        ></span>
         <script>
           // Show issue number in navbar if present in URL
           document.addEventListener("DOMContentLoaded", function () {
@@ -29,9 +31,13 @@
               // Try to get issue title from cache
               let issue = null;
               try {
-          const cachedOpen = JSON.parse(localStorage.getItem("issues_open")) || [];
-          const cachedClosed = JSON.parse(localStorage.getItem("issues_closed")) || [];
-          issue = [...cachedOpen, ...cachedClosed].find(i => i.number == issueId);
+                const cachedOpen =
+                  JSON.parse(localStorage.getItem("issues_open")) || [];
+                const cachedClosed =
+                  JSON.parse(localStorage.getItem("issues_closed")) || [];
+                issue = [...cachedOpen, ...cachedClosed].find(
+                  (i) => i.number == issueId
+                );
               } catch {}
               // Create the link to the GitHub issue
               const link = document.createElement("a");
@@ -44,10 +50,11 @@
               issueNumberSpan.appendChild(link);
               // Also show the issue title if available in cache
               if (issue && issue.title) {
-          const titleSpan = document.createElement("span");
-          titleSpan.className = "ml-2 text-gray-300 text-base font-normal";
-          titleSpan.textContent = `– ${issue.title}`;
-          issueNumberSpan.appendChild(titleSpan);
+                const titleSpan = document.createElement("span");
+                titleSpan.className =
+                  "ml-2 text-gray-300 text-base font-normal";
+                titleSpan.textContent = `– ${issue.title}`;
+                issueNumberSpan.appendChild(titleSpan);
               }
             }
           });
@@ -67,6 +74,14 @@
           class="text-gray-200 hover:text-white transition"
           >Website</a
         >
+        <a
+          href="https://github.com/HappySMP/BugTracker/issues/new"
+          target="_blank"
+          class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold transition w-1/2 sm:w-auto text-center"
+          style="min-width: 110px"
+        >
+          Create Bug Report
+        </a>
       </div>
       <!-- Hamburger -->
       <button id="navToggle" class="md:hidden text-gray-200 focus:outline-none">
@@ -99,12 +114,19 @@
         class="block py-2 text-gray-200 hover:text-white"
         >Website</a
       >
+      <a
+        href="https://github.com/HappySMP/BugTracker/issues/new"
+        target="_blank"
+        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold transition w-1/2 sm:w-auto text-center"
+        style="min-width: 110px"
+      >
+        Create Bug Report
+      </a>
     </div>
 
     <!-- Main Content -->
     <div class="w-full max-w-4xl mx-auto mt-8">
-      <div class="flex justify-center mb-6">
-      </div>
+      <div class="flex justify-center mb-6"></div>
       <div id="issueDetails" class="mt-6"></div>
     </div>
 
@@ -208,10 +230,10 @@
             <div>
               <h1 class="text-3xl font-bold mb-2">${issue.title}</h1>
               <p class="text-sm text-gray-400 mb-4">#${
-          issue.number
+                issue.number
               } opened by ${issue.user.login}</p>
               <div class="prose prose-invert max-w-none mb-8">${marked.parse(
-          issue.body || "*No description.*"
+                issue.body || "*No description.*"
               )}</div>
             </div>
             <div class="mt-8 flex justify-between">
@@ -219,7 +241,7 @@
           &larr; Back to issues
               </a>
               <a href="${
-          issue.html_url
+                issue.html_url
               }" target="_blank" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded">
           View this issue →
               </a>
@@ -231,7 +253,7 @@
           ${commentHTML || `<p class="text-gray-400">No comments yet.</p>`}
         </div>
             `;
-            }
+      }
 
       // Hamburger menu toggle
       document.addEventListener("DOMContentLoaded", function () {
