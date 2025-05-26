@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Issue Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+      };
+    </script>
+  </head>
+  <body class="bg-gray-900 text-white min-h-screen p-4 sm:p-8">
+    <!-- Responsive Navbar -->
+    <nav class="bg-gray-800 px-4 py-3 flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center">
+        <a href="/"><img src="logo.png" alt="Logo" class="h-8 w-8 mr-2" /></a>
+        <span class="font-bold text-xl text-white">HappySMP</span>
+      </div>
+      <!-- Desktop Links -->
+      <div class="hidden md:flex gap-6 items-center">
+        <a
+          href="https://discord.gg/happysmp"
+          target="_blank"
+          class="text-gray-200 hover:text-white transition"
+          >Discord</a
+        >
+        <a
+          href="https://happysmp.com"
+          target="_blank"
+          class="text-gray-200 hover:text-white transition"
+          >Website</a
+        >
+      </div>
+      <!-- Hamburger -->
+      <button id="navToggle" class="md:hidden text-gray-200 focus:outline-none">
+        <svg
+          class="w-7 h-7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M4 6h16M4 12h16M4 18h16"
+          />
+        </svg>
+      </button>
+    </nav>
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="md:hidden bg-gray-800 px-4 pb-3 hidden">
+      <a
+        href="https://discord.gg/happysmp"
+        target="_blank"
+        class="block py-2 text-gray-200 hover:text-white"
+        >Discord</a
+      >
+      <a
+        href="https://happysmp.com"
+        target="_blank"
+        class="block py-2 text-gray-200 hover:text-white"
+        >Website</a
+      >
+    </div>
+
+    <!-- Main Content -->
+    <div class="w-full max-w-5xl mx-auto mt-8">
+      <a href="index.html" class="text-blue-400 hover:underline mb-6 inline-block"
+        >&larr; Back to issues</a
+      >
+      <div id="issueDetails" class="mt-6"></div>
+    </div>
+
+<script>
+  const REPO_OWNER = "HappySMP";
+  const REPO_NAME = "BugTracker";
+
+  function getContrastYIQ(hexcolor) {
+    const r = parseInt(hexcolor.substr(1, 2), 16);
+    const g = parseInt(hexcolor.substr(3, 2), 16);
+    const b = parseInt(hexcolor.substr(5, 2), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 128 ? "#000" : "#fff";
+  }
+
+  async function loadIssue() {
+    const params = new URLSearchParams(window.location.search);
+    const issueId = params.get("id");
+    if (!issueId) return;
+
+    // Try to get issue and comments from cache
+    let issue = null;
+    let comments = null;
+
+    // Try to find the issue in cached open/closed issues
+    function findIssueInCache(state) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(`issues_${state}`)) || [];
+        return cached.find((i) => i.number == issueId);
+      } catch {
+        return null;
+      }
+    }
+
+    issue = findIssueInCache("open") || findIssueInCache("closed");
+    if (issue) {
+      console.log("Loaded issue from localStorage");
+    }
+
+    // Try to get comments from cache
+    try {
+      comments = JSON.parse(localStorage.getItem(`comments_${issueId}`));
+      if (comments) {
+        console.log("Loaded comments from localStorage");
+      }
+    } catch {
+      comments = null;
+    }
+
+    // If not cached, fetch from API
+    if (!issue) {
+      const issueRes = await fetch(
+        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${issueId}`
+      );
+      issue = await issueRes.json();
+      console.log("Fetched issue from GitHub API");
+    }
+    if (!comments) {
+      const commentsRes = await fetch(
+        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues/${issueId}/comments`
+      );
+      comments = await commentsRes.json();
+      // Cache for future use
+      localStorage.setItem(`comments_${issueId}`, JSON.stringify(comments));
+      console.log("Fetched comments from GitHub API");
+    }
+    const labels = (issue.labels || [])
+      .map((label) => {
+        const bgColor = `#${label.color}`;
+        const textColor = getContrastYIQ(bgColor);
+        return `<span class="text-xs font-semibold inline-block px-2 py-1 rounded mr-2" style="background-color:${bgColor};color:${textColor}">${label.name}</span>`;
+      })
+      .join("");
+
+    const commentHTML = (comments || [])
+      .map(
+        (comment) => `
+      <div class="bg-gray-800 p-4 rounded mb-4 shadow">
+        <div class="text-sm text-gray-400 mb-2">
+          <strong>${comment.user.login}</strong> commented on ${new Date(
+          comment.created_at
+        ).toLocaleString()}
+        </div>
+        <div class="prose prose-invert">${marked.parse(comment.body)}</div>
+      </div>
+    `
+      )
+      .join("");
+
+    document.getElementById("issueDetails").innerHTML = `
+      <h1 class="text-3xl font-bold mb-2">${issue.title}</h1>
+      <p class="text-sm text-gray-400 mb-4">#${issue.number} opened by ${
+      issue.user.login
+    }</p>
+      <div class="mb-4">${labels}</div>
+      <div class="prose prose-invert max-w-none mb-8">${marked.parse(
+        issue.body || "*No description.*"
+      )}</div>
+      <a href="${
+        issue.html_url
+      }" target="_blank" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded mb-8">
+        View this issue →
+      </a>
+
+      <h2 class="text-2xl font-bold mb-4">Comments</h2>
+      ${commentHTML || `<p class="text-gray-400">No comments yet.</p>`}
+    `;
+  }
+
+  // Hamburger menu toggle
+  document.addEventListener("DOMContentLoaded", function () {
+    const navToggle = document.getElementById("navToggle");
+    const mobileMenu = document.getElementById("mobileMenu");
+    navToggle.addEventListener("click", () => {
+      mobileMenu.classList.toggle("hidden");
+    });
+  });
+
+  // Load GitHub-flavored Markdown parser
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
+  script.onload = loadIssue;
+  document.head.appendChild(script);
+</script>
+  </body>
+</html>

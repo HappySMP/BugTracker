@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HappySMP Bug Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css" />
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+      };
+    </script>
+  </head>
+  <body class="bg-gray-900 text-white min-h-screen p-4 sm:p-8">
+    <nav class="bg-gray-800 px-4 py-3 flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center">
+        <a href="/"><img src="logo.png" alt="Logo" class="h-8 w-8 mr-2" /></a>
+        <span class="font-bold text-xl text-white">HappySMP - Bug tracker</span>
+      </div>
+      <!-- Desktop Links -->
+      <div class="hidden md:flex gap-6 items-center">
+        <a
+          href="https://discord.gg/happysmp"
+          target="_blank"
+          class="text-gray-200 hover:text-white transition"
+          >Discord</a
+        >
+        <a
+          href="https://happysmp.net"
+          target="_blank"
+          class="text-gray-200 hover:text-white transition"
+          >Website</a
+        >
+      </div>
+      <!-- Hamburger -->
+      <button id="navToggle" class="md:hidden text-gray-200 focus:outline-none">
+        <svg
+          class="w-7 h-7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M4 6h16M4 12h16M4 18h16"
+          />
+        </svg>
+      </button>
+    </nav>
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="md:hidden bg-gray-800 px-4 pb-3 hidden">
+      <a
+        href="https://discord.gg/yourdiscord"
+        target="_blank"
+        class="block py-2 text-gray-200 hover:text-white"
+        >Discord</a
+      >
+      <a
+        href="https://happysmp.com"
+        target="_blank"
+        class="block py-2 text-gray-200 hover:text-white"
+        >Website</a
+      >
+    </div>
+    <div>
+      <h1 class="text-3xl font-bold mb-6 text-center"></h1>
+
+      <div
+        class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4"
+      >
+        <input
+          type="text"
+          id="search"
+          placeholder="Search issues..."
+          class="px-4 py-2 flex-1 rounded bg-gray-800 border border-gray-700 w-full"
+          autofocus
+        />
+        <div class="flex gap-2 w-full sm:w-auto justify-end">
+          <button
+            id="openBtn"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-1/2 sm:w-auto"
+          >
+            Open
+          </button>
+          <button
+            id="closedBtn"
+            class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded w-1/2 sm:w-auto"
+          >
+            Closed
+          </button>
+        </div>
+      </div>
+
+      <div id="labelFilters" class="flex flex-wrap gap-2 mb-6"></div>
+      <ul
+        id="issues"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+      ></ul>
+    </div>
+
+    <script>
+      const REPO_OWNER = "HappySMP";
+      const REPO_NAME = "BugTracker";
+
+      let currentState = "open";
+      let selectedLabel = null;
+      let issues = [];
+
+      function getContrastYIQ(hexcolor) {
+        const r = parseInt(hexcolor.substr(1, 2), 16);
+        const g = parseInt(hexcolor.substr(3, 2), 16);
+        const b = parseInt(hexcolor.substr(5, 2), 16);
+        const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+        return yiq >= 128 ? "#000" : "#fff";
+      }
+
+      // --- Caching logic ---
+      function getCacheKey(state) {
+        return `issues_${state}`;
+      }
+      function getCacheTimeKey(state) {
+        return `issues_${state}_time`;
+      }
+      function isCacheValid(state) {
+        const cacheTime = localStorage.getItem(getCacheTimeKey(state));
+        if (!cacheTime) return false;
+        const now = Date.now();
+        // 10 minutes cache
+        return now - parseInt(cacheTime, 10) < 10 * 60 * 1000;
+      }
+
+      async function fetchIssues(state = "open") {
+        // Try cache first
+        if (isCacheValid(state)) {
+          try {
+            issues = JSON.parse(localStorage.getItem(getCacheKey(state))) || [];
+            displayLabelFilters();
+            displayIssues();
+            return;
+          } catch (e) {}
+        }
+
+        // Fetch from API
+        const res = await fetch(
+          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?state=${state}&per_page=100`
+        );
+        const data = await res.json();
+        issues = data.filter((issue) => !issue.pull_request);
+
+        // Store issues in localStorage
+        localStorage.setItem(getCacheKey(state), JSON.stringify(issues));
+        localStorage.setItem(getCacheTimeKey(state), Date.now().toString());
+
+        // Fetch and cache comments for each issue
+        for (const issue of issues) {
+          const commentsRes = await fetch(issue.comments_url);
+          const comments = await commentsRes.json();
+          localStorage.setItem(
+            `comments_${issue.number}`,
+            JSON.stringify(comments)
+          );
+        }
+
+        displayLabelFilters();
+        displayIssues();
+      }
+
+      function displayLabelFilters() {
+        const labelContainer = document.getElementById("labelFilters");
+        labelContainer.innerHTML = "";
+
+        const uniqueLabels = new Map();
+
+        issues.forEach((issue) => {
+          issue.labels.forEach((label) => {
+            if (!uniqueLabels.has(label.name)) {
+              uniqueLabels.set(label.name, label.color);
+            }
+          });
+        });
+
+        uniqueLabels.forEach((color, name) => {
+          const btn = document.createElement("button");
+          btn.textContent = name;
+          btn.className = `text-sm px-2 py-1 rounded border transition ${
+            selectedLabel === name
+              ? "border-white bg-white text-black font-bold"
+              : "border-gray-600 text-white bg-gray-800"
+          }`;
+          btn.style.borderColor = `#${color}`;
+          btn.addEventListener("click", () => {
+            selectedLabel = selectedLabel === name ? null : name;
+            displayLabelFilters();
+            displayIssues();
+          });
+          labelContainer.appendChild(btn);
+        });
+      }
+
+      function displayIssues() {
+        const searchTerm = document
+          .getElementById("search")
+          .value.toLowerCase();
+        const list = document.getElementById("issues");
+        list.innerHTML = "";
+
+        const filtered = issues.filter(
+          (issue) =>
+            (!selectedLabel ||
+              issue.labels.some((label) => label.name === selectedLabel)) &&
+            (issue.title.toLowerCase().includes(searchTerm) ||
+              issue.body?.toLowerCase().includes(searchTerm))
+        );
+
+        if (filtered.length === 0) {
+          const noIssuesDiv = document.createElement("div");
+          noIssuesDiv.className = "text-center text-gray-400 py-8";
+          noIssuesDiv.textContent = "No issues found.";
+          list.appendChild(noIssuesDiv);
+          return;
+        }
+
+        filtered.forEach((issue) => {
+          const li = document.createElement("li");
+          li.className =
+            "bg-gray-800 p-4 rounded shadow transition-transform duration-150 hover:scale-105";
+
+          const labels = issue.labels
+            .map((label) => {
+              const bgColor = `#${label.color}`;
+              const textColor = getContrastYIQ(bgColor);
+              return `<span class="text-xs font-semibold inline-block px-2 py-1 rounded mr-2" style="background-color:${bgColor};color:${textColor}">${label.name}</span>`;
+            })
+            .join("");
+
+          li.innerHTML = `
+      <a href="issue.html?id=${issue.number}" class="text-xl font-semibold text-blue-400 block">
+        ${issue.title}
+        <p class="text-sm text-gray-400 mt-1">#${issue.number} opened by ${issue.user.login}</p>
+        <div class="mt-2">${labels}</div>
+      </a>
+    `;
+          list.appendChild(li);
+        });
+      }
+
+      document.getElementById("openBtn").addEventListener("click", () => {
+        currentState = "open";
+        fetchIssues("open");
+      });
+
+      document.getElementById("closedBtn").addEventListener("click", () => {
+        currentState = "closed";
+        fetchIssues("closed");
+      });
+
+      document
+        .getElementById("search")
+        .addEventListener("input", displayIssues);
+
+      // Initial load
+      fetchIssues();
+
+      document.getElementById("navToggle").addEventListener("click", () => {
+        const menu = document.getElementById("mobileMenu");
+        menu.classList.toggle("hidden");
+      });
+    </script>
+  </body>
+</html>
