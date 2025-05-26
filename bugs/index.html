@@ -156,8 +156,13 @@
         const cacheTime = localStorage.getItem(getCacheTimeKey(state));
         if (!cacheTime) return false;
         const now = Date.now();
-        // 10 minutes cache
-        return now - parseInt(cacheTime, 10) < 10 * 60 * 1000;
+        // 3 minutes cache, reset on page reload
+        if (performance.navigation.type === performance.navigation.TYPE_RELOAD) {
+          localStorage.removeItem(getCacheKey(state));
+          localStorage.removeItem(getCacheTimeKey(state));
+          return false;
+        }
+        return now - parseInt(cacheTime, 10) < 3 * 60 * 1000;
       }
 
       async function fetchIssues(state = "open") {
