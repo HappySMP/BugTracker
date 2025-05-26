@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
   <head>
-    <base href="/bugs/">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HappySMP Bug Tracker</title>
@@ -16,7 +15,7 @@
     <nav class="bg-gray-800 px-4 py-3 flex items-center justify-between">
       <!-- Logo -->
       <div class="flex items-center">
-        <a href="/"><img src="logo.png" alt="Logo" class="h-8 w-8 mr-2" /></a>
+        <a href="/"><img src="./logo.png" alt="Logo" class="h-8 w-8 mr-2" /></a>
         <span class="font-bold text-xl text-white">HappySMP - Bug tracker</span>
       </div>
       <!-- Desktop Links -->
@@ -238,7 +237,7 @@
             .join("");
 
           li.innerHTML = `
-      <a href="issue.html?id=${issue.number}" class="text-xl font-semibold text-blue-400 block">
+      <a href="./issue.html?id=${issue.number}" class="text-xl font-semibold text-blue-400 block">
         ${issue.title}
         <p class="text-sm text-gray-400 mt-1">#${issue.number} opened by ${issue.user.login}</p>
         <div class="mt-2">${labels}</div>
